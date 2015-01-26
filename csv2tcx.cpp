@@ -1,9 +1,17 @@
 /*
  * copyright (c) 2015 Sam C. Lin
  * convert GPS Master CSV file to TCX
+ *
+ * 20150126 SCL v0.1 first rev
+ * 20150126 SCL v0.2 add max,avg HR
+ *
  */
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <math.h>
+
+#define VERSTR "Lincomatic GPS Master CSV to GPX Converter v0.2\n\n"
 
 #define MAX_PTS 32768
 
@@ -72,7 +80,6 @@ int Datum::Set(char *line)
 Datum pts[MAX_PTS];
 int ptCnt;
 char line[4096];
-
 // read line and convert from UTF-16
 int readLine(FILE *fp)
 {
@@ -148,14 +155,42 @@ int writeTCX(char *sport,char *fn)
 {
   FILE *fp = fopen(fn,"wb");
   if (fp) {
+    int i;
+    double avgHR=0.0,maxHR=0.0;
+    int ptcnt = 0;
+    for (i=0;i < ptCnt;i++) {
+      double hr = strtod(pts[i].hr,NULL);
+      if (hr) {
+	if (hr > maxHR) {
+	  maxHR = hr;
+	}
+	avgHR += hr;
+	ptcnt++;
+      }
+    }
+
+    int iavgHR = (int)(ceil(avgHR /= (double)ptcnt));
+    int imaxHR = (int) maxHR;
+
+    printf("Avg HR: %d\n",iavgHR);
+    printf("Max HR: %d\n",imaxHR);
+    printf("Trackpoints %d\n", ptCnt);
+
     // write header
     fprintf(fp,"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n\
 <TrainingCenterDatabase xmlns=\"http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2 http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd\">\n<Activities>\n <Activity Sport=\"%s\">\n",sport);
     fprintf(fp,"  <Id>%sZ</Id>\n",pts[0].time);
     fprintf(fp,"  <Lap StartTime=\"%sZ\">\n",pts[0].time);
+    if (avgHR)
+      fprintf(fp,"  <AverageHeartRateBpm>\n   <Value>%d</Value>\n  </AverageHeartRateBpm>\n",iavgHR);
+    if (maxHR)
+      fprintf(fp,"  <MaximumHeartRateBpm>\n   <Value>%d</Value>\n  </MaximumHeartRateBpm>\n",imaxHR);
+    fprintf(fp,"  <TotalTimeSeconds>0</TotalTimeSeconds>\n"); // dummy
+    fprintf(fp,"  <DistanceMeters>0.000000</DistanceMeters>\n"); // dummy
+    fprintf(fp,"  <Calories>0</Calories>\n"); // dummy
     fprintf(fp,"  <Track>\n");
 
-    for (int i=0;i < ptCnt;i++) {
+    for (i=0;i < ptCnt;i++) {
       makeTrackPoint(&pts[i]);
       // write track point
       if (fprintf(fp,line) != strlen(line)) {
@@ -174,7 +209,7 @@ int writeTCX(char *sport,char *fn)
 
 int main(int argc,char *argv[])
 {
-  printf("Lincomatic GPS Master CSV to GPX Converter v0.2\n\n");
+  printf(VERSTR);
   if (argc != 3) {
     printf("Usage: csv2tcx infile outfile\n");
     return 1;
@@ -186,8 +221,6 @@ int main(int argc,char *argv[])
   if (!readCSV(argv[1])) {
     writeTCX("Other",argv[2]);
   }
-
-  printf("Trackpoints %d\n", ptCnt);
 
   return 0;
 }
