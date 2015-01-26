@@ -1,3 +1,13 @@
+Debug/*
+Release/*
+test/*
+*~
+*.obj
+*.sdf
+*.suo
+*.filters
+*.user
+*.opensdf
 # Windows image file caches
 Thumbs.db
 ehthumbs.db

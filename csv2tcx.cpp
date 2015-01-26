@@ -4,14 +4,17 @@
  *
  * 20150126 SCL v0.1 first rev
  * 20150126 SCL v0.2 add max,avg HR
+ * 20150126 SCL v0.3 don't need to specify outfile
  *
  */
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include <limits.h>
 
-#define VERSTR "Lincomatic GPS Master CSV to GPX Converter v0.2\n\n"
+#define MAX_PATH 256
+#define VERSTR "Lincomatic GPS Master CSV to GPX Converter v0.3\n\n"
 
 #define MAX_PTS 32768
 
@@ -210,16 +213,25 @@ int writeTCX(char *sport,char *fn)
 int main(int argc,char *argv[])
 {
   printf(VERSTR);
-  if (argc != 3) {
-    printf("Usage: csv2tcx infile outfile\n");
+  if (argc != 2) {
+    printf("Usage: csv2tcx infile\n");
     return 1;
   }
 
-  printf("Converting %s -> %s\n",argv[1],argv[2]);
+  char outfn[MAX_PATH];
+  int slen = strlen(argv[1]);
+  strcpy(outfn,argv[1]);
+  if (outfn[slen-4] == '.') {
+    strcpy(outfn + slen -3,"tcx");
+  }
+  else {
+    strcat(outfn,".tcx");
+  }
+  printf("Converting %s -> %s\n",argv[1],outfn);
 
   ptCnt = 0;
   if (!readCSV(argv[1])) {
-    writeTCX("Other",argv[2]);
+    writeTCX("Other",outfn);
   }
 
   return 0;
