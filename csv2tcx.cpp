@@ -5,6 +5,7 @@
  * 20150126 SCL v0.1 first rev
  * 20150126 SCL v0.2 add max,avg HR
  * 20150126 SCL v0.3 don't need to specify outfile
+ * 20150126 SCL v0.4 convert CSV from local (computer) time to GMT
  *
  */
 #include <stdio.h>
@@ -12,9 +13,11 @@
 #include <stdlib.h>
 #include <math.h>
 #include <limits.h>
+#include <ctime>
+#include <iostream>
 
 #define MAX_PATH 256
-#define VERSTR "Lincomatic GPS Master CSV to GPX Converter v0.3\n\n"
+#define VERSTR "Lincomatic GPS Master CSV to GPX Converter v0.4\n\n"
 
 #define MAX_PTS 32768
 
@@ -141,6 +144,35 @@ double ft2m(char *sft)
   return ft * .30480;
 }
 
+time_t csv2time(const char *csvtime)
+{
+  struct tm stm;
+  int i;
+  char buf[80];
+  strcpy(buf,csvtime);
+  char *s = buf;
+  s = strtok(buf,"-");
+  sscanf(s,"%d",&i);
+  stm.tm_year = i - 1900;
+  s = strtok(NULL,"-");
+  sscanf(s,"%d",&i);
+  stm.tm_mon = i - 1;
+  s = strtok(NULL," ");
+  sscanf(s,"%d",&i);
+  stm.tm_mday = i;
+  s = strtok(NULL,":");
+  sscanf(s,"%d",&i);
+  stm.tm_hour = i;
+  s = strtok(NULL,":");
+  sscanf(s,"%d",&i);
+  stm.tm_min = i;
+  s = strtok(NULL,":");
+  sscanf(s,"%d",&i);
+  stm.tm_sec = i;
+  stm.tm_isdst = -1;
+  return mktime(&stm);
+}
+
 void makeTrackPoint(Datum *dt)
 {
   char bpm[80];
@@ -152,7 +184,13 @@ void makeTrackPoint(Datum *dt)
     sprintf(bpm,"    <HeartRateBpm>\n     <Value>%s</Value>\n    </HeartRateBpm>\n",dt->hr);
   }
 
-  sprintf(line,"   <Trackpoint>\n    <Time>%sZ</Time>\n    <Position>\n     <LatitudeDegrees>%s</LatitudeDegrees>\n     <LongitudeDegrees>%s</LongitudeDegrees>\n    </Position>\n    <AltitudeMeters>%lf</AltitudeMeters>\n%s   </Trackpoint>\n",dt->time,dt->lat,dt->lon,ft2m(dt->alt),bpm);
+  time_t csvtime = csv2time(dt->time);
+  char stime[80];
+  // strftime(buf, sizeof buf, "%FT%TZ", gmtime(&now));
+  // this will work too, if your compiler doesn't support %F or %T:
+  strftime(stime, sizeof(stime), "%Y-%m-%dT%H:%M:%SZ", gmtime(&csvtime));
+
+  sprintf(line,"   <Trackpoint>\n    <Time>%s</Time>\n    <Position>\n     <LatitudeDegrees>%s</LatitudeDegrees>\n     <LongitudeDegrees>%s</LongitudeDegrees>\n    </Position>\n    <AltitudeMeters>%lf</AltitudeMeters>\n%s   </Trackpoint>\n",stime,dt->lat,dt->lon,ft2m(dt->alt),bpm);
 }
 int writeTCX(char *sport,char *fn)
 {
@@ -179,18 +217,25 @@ int writeTCX(char *sport,char *fn)
     printf("Max HR: %d\n",imaxHR);
     printf("Trackpoints %d\n", ptCnt);
 
+    time_t csvtime = csv2time(dt->time);
+    char stime[80];
+    // strftime(buf, sizeof buf, "%FT%TZ", gmtime(&now));
+    // this will work too, if your compiler doesn't support %F or %T:
+    strftime(stime, sizeof(stime), "%Y-%m-%dT%H:%M:%SZ", gmtime(&csvtime));
+
+
     // write header
     fprintf(fp,"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n\
 <TrainingCenterDatabase xmlns=\"http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2 http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd\">\n<Activities>\n <Activity Sport=\"%s\">\n",sport);
-    fprintf(fp,"  <Id>%sZ</Id>\n",pts[0].time);
-    fprintf(fp,"  <Lap StartTime=\"%sZ\">\n",pts[0].time);
+    fprintf(fp,"  <Id>%s</Id>\n",stime);
+    fprintf(fp,"  <Lap StartTime=\"%s\">\n",stime);
     if (avgHR)
       fprintf(fp,"  <AverageHeartRateBpm>\n   <Value>%d</Value>\n  </AverageHeartRateBpm>\n",iavgHR);
     if (maxHR)
       fprintf(fp,"  <MaximumHeartRateBpm>\n   <Value>%d</Value>\n  </MaximumHeartRateBpm>\n",imaxHR);
-    fprintf(fp,"  <TotalTimeSeconds>0</TotalTimeSeconds>\n"); // dummy
-    fprintf(fp,"  <DistanceMeters>0.000000</DistanceMeters>\n"); // dummy
-    fprintf(fp,"  <Calories>0</Calories>\n"); // dummy
+    //fprintf(fp,"  <TotalTimeSeconds>0</TotalTimeSeconds>\n"); // dummy
+    //fprintf(fp,"  <DistanceMeters>0.000000</DistanceMeters>\n"); // dummy
+    //fprintf(fp,"  <Calories>0</Calories>\n"); // dummy
     fprintf(fp,"  <Track>\n");
 
     for (i=0;i < ptCnt;i++) {
