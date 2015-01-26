@@ -133,15 +133,24 @@ double ft2m(char *sft)
 
 void makeTrackPoint(Datum *dt)
 {
-  sprintf(line,"   <Trackpoint>\n    <Time>%sZ</Time>\n    <Position>\n     <LatitudeDegrees>%s</LatitudeDegrees>\n     <LongitudeDegrees>%s</LongitudeDegrees>\n    </Position>\n    <AltitudeMeters>%lf</AltitudeMeters>\n    <HeartRateBpm>\n     <Value>%s</Value>\n    </HeartRateBpm>\n   </Trackpoint>\n",dt->time,dt->lat,dt->lon,ft2m(dt->alt),dt->hr);
+  char bpm[80];
+
+  if (*dt->hr == '0') {
+    bpm[0] = 0;
+  }
+  else {
+    sprintf(bpm,"    <HeartRateBpm>\n     <Value>%s</Value>\n    </HeartRateBpm>\n",dt->hr);
+  }
+
+  sprintf(line,"   <Trackpoint>\n    <Time>%sZ</Time>\n    <Position>\n     <LatitudeDegrees>%s</LatitudeDegrees>\n     <LongitudeDegrees>%s</LongitudeDegrees>\n    </Position>\n    <AltitudeMeters>%lf</AltitudeMeters>\n%s   </Trackpoint>\n",dt->time,dt->lat,dt->lon,ft2m(dt->alt),bpm);
 }
-int writeTCX(char *fn)
+int writeTCX(char *sport,char *fn)
 {
   FILE *fp = fopen(fn,"wb");
   if (fp) {
     // write header
     fprintf(fp,"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n\
-<TrainingCenterDatabase xmlns=\"http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2 http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd\">\n<Activities>\n <Activity>\n");
+<TrainingCenterDatabase xmlns=\"http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2 http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd\">\n<Activities>\n <Activity Sport=\"%s\">\n",sport);
     fprintf(fp,"  <Id>%sZ</Id>\n",pts[0].time);
     fprintf(fp,"  <Lap StartTime=\"%sZ\">\n",pts[0].time);
     fprintf(fp,"  <Track>\n");
@@ -165,7 +174,7 @@ int writeTCX(char *fn)
 
 int main(int argc,char *argv[])
 {
-  printf("Lincomatic GPS Master CSV to GPX Converter v0.1\n\n");
+  printf("Lincomatic GPS Master CSV to GPX Converter v0.2\n\n");
   if (argc != 3) {
     printf("Usage: csv2tcx infile outfile\n");
     return 1;
@@ -175,7 +184,7 @@ int main(int argc,char *argv[])
 
   ptCnt = 0;
   if (!readCSV(argv[1])) {
-    writeTCX(argv[2]);
+    writeTCX("Other",argv[2]);
   }
 
   printf("Trackpoints %d\n", ptCnt);
