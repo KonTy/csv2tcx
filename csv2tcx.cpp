@@ -217,7 +217,7 @@ int writeTCX(char *sport,char *fn)
     printf("Max HR: %d\n",imaxHR);
     printf("Trackpoints %d\n", ptCnt);
 
-    time_t csvtime = csv2time(dt->time);
+    time_t csvtime = csv2time(pts[0].time);
     char stime[80];
     // strftime(buf, sizeof buf, "%FT%TZ", gmtime(&now));
     // this will work too, if your compiler doesn't support %F or %T:
