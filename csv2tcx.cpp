@@ -50,7 +50,6 @@ int Datum::Set(char *line)
     s = strchr(s,',');
     *(s++) = 0;
     this->time = s;
-    *(strchr(this->time,' ')) = 'T';
     s = strchr(s,',');
     *(s++) = 0;
     this->satcnt = s;
